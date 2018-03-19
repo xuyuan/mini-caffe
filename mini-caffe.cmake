@@ -1,5 +1,7 @@
 # mini-caffe.cmake
 
+find_package(Protobuf REQUIRED)
+
 option(USE_CUDA "Use CUDA support" OFF)
 option(USE_CUDNN "Use CUDNN support" OFF)
 option(USE_JAVA "Use JAVA support" OFF)
@@ -8,15 +10,16 @@ option(USE_JAVA "Use JAVA support" OFF)
 set(BLAS "openblas" CACHE STRING "Selected BLAS library")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/Cuda.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/FindOpenBLAS.cmake)
 
 if(USE_JAVA)
   find_package(JNI)
 endif()
 
 # turn on C++11
-if(CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-endif()
+#if(CMAKE_COMPILER_IS_GNUCXX)
+#  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+#endif()
 
 # include and library
 if(MSVC)
@@ -38,10 +41,15 @@ elseif(ANDROID)
   endif(ANDROID_EXTRA_LIBRARY_PATH)
 else(MSVC)
   include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
-  list(APPEND Caffe_LINKER_LIBS protobuf)
+  list(APPEND Caffe_LINKER_LIBS ${PROTOBUF_LIBRARY})
   if(BLAS STREQUAL "openblas")
-    list(APPEND Caffe_LINKER_LIBS openblas)
-    message(STATUS "Use OpenBLAS for blas library")
+    if(OpenBLAS_LIB)
+        include_directories(SYSTEM ${OpenBLAS_INCLUDE_DIR})
+        list(APPEND Caffe_LINKER_LIBS ${OpenBLAS_LIB})
+        message(STATUS "Use OpenBLAS for blas library")
+    else(OpenBLAS_LIB)
+        message(FATAL_ERROR "Could not find OpenBLAS")
+    endif(OpenBLAS_LIB)
   else()
     list(APPEND Caffe_LINKER_LIBS blas)
     message(STATUS "Use BLAS for blas library")
