@@ -47,6 +47,12 @@ void Net::Init(const NetParameter& param) {
     const int num_top = layer_param.top_size();
     for (int top_id = 0; top_id < num_top; ++top_id) {
       AppendTop(param, layer_id, top_id, &available_blobs, &blob_name_to_idx);
+      // Collect Input layer tops as Net inputs.
+      if (layer_param.type() == "Input") {
+        const int blob_id = blobs_.size() - 1;
+        net_input_blob_indices_.push_back(blob_id);
+        net_input_blobs_.push_back(blobs_[blob_id].get());
+      }
     }
     // After this layer is connected, set it up.
     layers_[layer_id]->SetUp(bottom_vecs_[layer_id], top_vecs_[layer_id]);
@@ -58,6 +64,14 @@ void Net::Init(const NetParameter& param) {
   }
   CHECK_EQ(std::string(layers_[0]->type()), std::string("Input"))
       << "Network\'s first layer should be Input Layer.";
+
+  // In the end, all remaining blobs are considered output blobs.
+  for (std::set<string>::iterator it = available_blobs.begin();
+      it != available_blobs.end(); ++it) {
+    LOG(INFO) << "This network produces output " << *it;
+    net_output_blobs_.push_back(blobs_[blob_name_to_idx[*it]].get());
+    net_output_blob_indices_.push_back(blob_name_to_idx[*it]);
+  }
   // for most case, not fully convolutional network, hold input data will be convenient
   for (int blob_id : top_id_vecs_[0]) {
     blob_life_time_[blob_id] = layers_.size();
@@ -120,6 +134,7 @@ int Net::AppendBottom(const NetParameter& param, const int layer_id,
   bottom_vecs_[layer_id].push_back(blobs_[blob_id].get());
   bottom_id_vecs_[layer_id].push_back(blob_id);
   blob_life_time_[blob_id] = std::max(blob_life_time_[blob_id], layer_id);
+  available_blobs->erase(blob_name);
   return blob_id;
 }
 

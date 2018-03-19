@@ -132,6 +132,22 @@ class CAFFE_API Net {
   /// @brief mark extra output named blob
   void MarkOutputs(const std::vector<std::string>& outs);
 
+  /// @brief Input and output blob numbers
+  inline int num_inputs() const { return net_input_blobs_.size(); }
+  inline int num_outputs() const { return net_output_blobs_.size(); }
+  inline const vector<Blob*>& input_blobs() const {
+    return net_input_blobs_;
+  }
+  inline const vector<Blob*>& output_blobs() const {
+    return net_output_blobs_;
+  }
+  inline const vector<int>& input_blob_indices() const {
+    return net_input_blob_indices_;
+  }
+  inline const vector<int>& output_blob_indices() const {
+    return net_output_blob_indices_;
+  }
+
  protected:
   // Helpers for Init.
   /// @brief Append a new top blob to the net.
@@ -170,6 +186,11 @@ class CAFFE_API Net {
   /// top_vecs stores the vectors containing the output for each layer
   vector<vector<Blob*> > top_vecs_;
   vector<vector<int> > top_id_vecs_;
+  /// blob indices for the input and the output of the net
+  vector<int> net_input_blob_indices_;
+  vector<int> net_output_blob_indices_;
+  vector<Blob*> net_input_blobs_;
+  vector<Blob*> net_output_blobs_;
   DISABLE_COPY_AND_ASSIGN(Net);
 };
 
