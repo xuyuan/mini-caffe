@@ -205,13 +205,13 @@ MemBlock MemoryPool::RequestCPU(size_t size) {
       block.size = size;
       block.ptr = malloc(size);
       st_.cpu_mem += size;
-      DLOG(INFO) << "[CPU] Requested " << MemSize(size) << ", Create " << MemSize(block.size);
+      //DLOG(INFO) << "[CPU] Requested " << MemSize(size) << ", Create " << MemSize(block.size);
     }
     else {
       block = it->second;
       cpu_pool_.erase(it);
       st_.unused_cpu_mem -= block.size;
-      DLOG(INFO) << "[CPU] Requested " << MemSize(size) << ", Get " << MemSize(block.size);
+      //DLOG(INFO) << "[CPU] Requested " << MemSize(size) << ", Get " << MemSize(block.size);
     }
   }
   return block;
@@ -227,7 +227,7 @@ void MemoryPool::ReturnCPU(MemBlock block) {
     CpuKey key{block.size};
     cpu_pool_.insert(std::make_pair(key, block));
     st_.unused_cpu_mem += block.size;
-    DLOG(INFO) << "[CPU] Return " << MemSize(block.size);
+    //DLOG(INFO) << "[CPU] Return " << MemSize(block.size);
   }
 }
 
