@@ -22,7 +22,7 @@ class NetParameter;
  */
 class CAFFE_API Net {
  public:
-  explicit Net(const string& param_file);
+  explicit Net(const string& param_file, int phase=1);
   explicit Net(const NetParameter& param) {
     Init(param);
   }

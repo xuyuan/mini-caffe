@@ -17,9 +17,11 @@
 
 namespace caffe {
 
-Net::Net(const string& param_file) {
+Net::Net(const string& param_file, int phase) {
+  CHECK_EQ(phase, TEST);
   NetParameter param;
   ReadNetParamsFromTextFileOrDie(param_file, &param);
+  param.mutable_state()->set_phase(Phase(phase));
   Init(param);
 }
 
