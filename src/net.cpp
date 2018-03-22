@@ -13,19 +13,30 @@
 #include "./layer.hpp"
 #include "./util/math_functions.hpp"
 #include "./util/upgrade_proto.hpp"
+#include "./util/insert_splits.hpp"
 #include "./proto/caffe.pb.h"
 
 namespace caffe {
 
-Net::Net(const string& param_file, int phase) {
-  CHECK_EQ(phase, TEST);
+Net::Net(const string& param_file) {
   NetParameter param;
   ReadNetParamsFromTextFileOrDie(param_file, &param);
-  param.mutable_state()->set_phase(Phase(phase));
+  param.mutable_state()->set_phase(TEST); // TEST ONLY
   Init(param);
 }
 
-void Net::Init(const NetParameter& param) {
+void Net::Init(const NetParameter& in_param) {
+  CHECK_EQ(in_param.state().phase(), TEST);
+  // Filter layers based on their include/exclude rules and
+  // the current NetState.
+  NetParameter filtered_param;
+  FilterNet(in_param, &filtered_param);
+  LOG(INFO)
+      << "Initializing net from parameters: " << std::endl
+      << filtered_param.DebugString();
+  // Create a copy of filtered_param with splits added where necessary.
+  NetParameter param;
+  InsertSplits(filtered_param, &param);
   // Basically, build all the layers and set up their connections.
   name_ = param.name();
   std::map<string, int> blob_name_to_idx;
@@ -83,6 +94,101 @@ void Net::Init(const NetParameter& param) {
   }
   for (size_t layer_id = 0; layer_id < layer_names_.size(); ++layer_id) {
     layer_names_index_[layer_names_[layer_id]] = layer_id;
+  }
+}
+
+/// @brief return whether NetState state meets NetStateRule rule
+bool StateMeetsRule(const NetState& state,
+    const NetStateRule& rule, const string& layer_name) {
+  // Check whether the rule is broken due to phase.
+  if (rule.has_phase()) {
+      if (rule.phase() != state.phase()) {
+        LOG(INFO)
+            << "The NetState phase (" << state.phase()
+            << ") differed from the phase (" << rule.phase()
+            << ") specified by a rule in layer " << layer_name;
+        return false;
+      }
+  }
+  // Check whether the rule is broken due to min level.
+  if (rule.has_min_level()) {
+    if (state.level() < rule.min_level()) {
+      LOG(INFO)
+          << "The NetState level (" << state.level()
+          << ") is above the min_level (" << rule.min_level()
+          << ") specified by a rule in layer " << layer_name;
+      return false;
+    }
+  }
+  // Check whether the rule is broken due to max level.
+  if (rule.has_max_level()) {
+    if (state.level() > rule.max_level()) {
+      LOG(INFO)
+          << "The NetState level (" << state.level()
+          << ") is above the max_level (" << rule.max_level()
+          << ") specified by a rule in layer " << layer_name;
+      return false;
+    }
+  }
+  // Check whether the rule is broken due to stage. The NetState must
+  // contain ALL of the rule's stages to meet it.
+  for (int i = 0; i < rule.stage_size(); ++i) {
+    // Check that the NetState contains the rule's ith stage.
+    bool has_stage = false;
+    for (int j = 0; !has_stage && j < state.stage_size(); ++j) {
+      if (rule.stage(i) == state.stage(j)) { has_stage = true; }
+    }
+    if (!has_stage) {
+      LOG(INFO)
+          << "The NetState did not contain stage '" << rule.stage(i)
+          << "' specified by a rule in layer " << layer_name;
+      return false;
+    }
+  }
+  // Check whether the rule is broken due to not_stage. The NetState must
+  // contain NONE of the rule's not_stages to meet it.
+  for (int i = 0; i < rule.not_stage_size(); ++i) {
+    // Check that the NetState contains the rule's ith not_stage.
+    bool has_stage = false;
+    for (int j = 0; !has_stage && j < state.stage_size(); ++j) {
+      if (rule.not_stage(i) == state.stage(j)) { has_stage = true; }
+    }
+    if (has_stage) {
+      LOG(INFO)
+          << "The NetState contained a not_stage '" << rule.not_stage(i)
+          << "' specified by a rule in layer " << layer_name;
+      return false;
+    }
+  }
+  return true;
+}
+
+void Net::FilterNet(const NetParameter& param,
+    NetParameter* param_filtered) {
+  NetState net_state(param.state());
+  param_filtered->CopyFrom(param);
+  param_filtered->clear_layer();
+  for (int i = 0; i < param.layer_size(); ++i) {
+    const LayerParameter& layer_param = param.layer(i);
+    const string& layer_name = layer_param.name();
+    CHECK(layer_param.include_size() == 0 || layer_param.exclude_size() == 0)
+          << "Specify either include rules or exclude rules; not both.";
+    // If no include rules are specified, the layer is included by default and
+    // only excluded if it meets one of the exclude rules.
+    bool layer_included = (layer_param.include_size() == 0);
+    for (int j = 0; layer_included && j < layer_param.exclude_size(); ++j) {
+      if (StateMeetsRule(net_state, layer_param.exclude(j), layer_name)) {
+        layer_included = false;
+      }
+    }
+    for (int j = 0; !layer_included && j < layer_param.include_size(); ++j) {
+      if (StateMeetsRule(net_state, layer_param.include(j), layer_name)) {
+        layer_included = true;
+      }
+    }
+    if (layer_included) {
+      param_filtered->add_layer()->CopyFrom(layer_param);
+    }
   }
 }
 

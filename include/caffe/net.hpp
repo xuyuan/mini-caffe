@@ -22,7 +22,7 @@ class NetParameter;
  */
 class CAFFE_API Net {
  public:
-  explicit Net(const string& param_file, int phase=1);
+  explicit Net(const string& param_file);
   explicit Net(const NetParameter& param) {
     Init(param);
   }
@@ -147,6 +147,13 @@ class CAFFE_API Net {
   inline const vector<int>& output_blob_indices() const {
     return net_output_blob_indices_;
   }
+
+  // Helpers for Init.
+  /**
+   * @brief Remove layers that the user specified should be excluded given the current
+   *        phase, level, and stage.
+   */
+  static void FilterNet(const NetParameter& param, NetParameter* param_filtered);
 
  protected:
   // Helpers for Init.
