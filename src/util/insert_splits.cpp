@@ -4,10 +4,12 @@
 #include <string>
 #include <utility>
 
-#include "caffe/common.hpp"
-#include "caffe/util/insert_splits.hpp"
+#include "../common.hpp"
+#include "../util/insert_splits.hpp"
 
 namespace caffe {
+
+using namespace std;
 
 void InsertSplits(const NetParameter& param, NetParameter* param_split) {
   // Initialize by copying from the input NetParameter.

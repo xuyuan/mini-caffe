@@ -31,9 +31,9 @@ void Net::Init(const NetParameter& in_param) {
   // the current NetState.
   NetParameter filtered_param;
   FilterNet(in_param, &filtered_param);
-  LOG(INFO)
+  /*LOG(INFO)
       << "Initializing net from parameters: " << std::endl
-      << filtered_param.DebugString();
+      << filtered_param.DebugString();*/
   // Create a copy of filtered_param with splits added where necessary.
   NetParameter param;
   InsertSplits(filtered_param, &param);
@@ -81,7 +81,7 @@ void Net::Init(const NetParameter& in_param) {
   // In the end, all remaining blobs are considered output blobs.
   for (std::set<string>::iterator it = available_blobs.begin();
       it != available_blobs.end(); ++it) {
-    LOG(INFO) << "This network produces output " << *it;
+    //LOG(INFO) << "This network produces output " << *it;
     net_output_blobs_.push_back(blobs_[blob_name_to_idx[*it]].get());
     net_output_blob_indices_.push_back(blob_name_to_idx[*it]);
   }
